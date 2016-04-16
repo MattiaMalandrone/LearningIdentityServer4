@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNet.Builder;
@@ -14,13 +16,11 @@ namespace LearningIdentityServer.WebApi
     {
         public Startup(IHostingEnvironment env)
         {
-            // Set up configuration sources.
             var builder = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json");
 
             if (env.IsEnvironment("Development"))
             {
-                // This will push telemetry data through Application Insights pipeline faster, allowing you to view results immediately.
                 builder.AddApplicationInsightsSettings(developerMode: true);
             }
 
@@ -30,10 +30,8 @@ namespace LearningIdentityServer.WebApi
 
         public IConfigurationRoot Configuration { get; set; }
 
-        // This method gets called by the runtime. Use this method to add services to the container
         public void ConfigureServices(IServiceCollection services)
         {
-            // Add framework services.
             services.AddApplicationInsightsTelemetry(Configuration);
 
             services.AddMvc();
@@ -42,16 +40,21 @@ namespace LearningIdentityServer.WebApi
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
-            loggerFactory.AddConsole(Configuration.GetSection("Logging"));
-            loggerFactory.AddDebug();
+            loggerFactory.AddConsole(LogLevel.Verbose);
+            loggerFactory.AddDebug(LogLevel.Verbose);
 
             app.UseIISPlatformHandler();
 
-            app.UseApplicationInsightsRequestTelemetry();
-
-            app.UseApplicationInsightsExceptionTelemetry();
-
             app.UseStaticFiles();
+
+            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+            app.UseIdentityServerAuthentication(options =>
+            {
+                options.Authority = "http://localhost:5000";
+                options.ScopeName = "openid";
+                options.AutomaticAuthenticate = true;
+                options.AutomaticChallenge = true;
+            });
 
             app.UseMvc();
         }
